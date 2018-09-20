@@ -136,7 +136,7 @@ Let's apply the previous two functions to the `households` data set:
 ```
 
 ``` r
-> write.csv(hh_by_village, "../../cleaned_data/census/hh_by_village.csv")
+> write.csv(hh_by_village, "../../cleaned_data/hh_by_village.csv")
 ```
 
 ### Individual data
@@ -169,5 +169,5 @@ Let's apply the previous two functions to the `households` data set:
 ```
 
 ``` r
-> write.csv(prs_by_village, "../../cleaned_data/census/prs_by_village.csv")
+> write.csv(prs_by_village, "../../cleaned_data/prs_by_village.csv")
 ```

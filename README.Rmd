@@ -165,7 +165,7 @@ hh_by_village <- households %>%
 ```
 
 ```{r}
-write.csv(hh_by_village, "../../cleaned_data/census/hh_by_village.csv")
+write.csv(hh_by_village, "../../cleaned_data/hh_by_village.csv")
 ```
 
 ### Individual data
@@ -198,6 +198,6 @@ prs_by_village <- left_join(persons1, persons2, by = c("District_ID", "Village_I
 ```
 
 ```{r}
-write.csv(prs_by_village, "../../cleaned_data/census/prs_by_village.csv")
+write.csv(prs_by_village, "../../cleaned_data/prs_by_village.csv")
 ```
 
