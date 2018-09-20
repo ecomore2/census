@@ -95,7 +95,8 @@ The following function converts a data frame with a categorical variable into a 
 +     group_by(.dots = var_ref) %>%
 +     count_(var) %>%
 +     ungroup() %>%
-+     spread(var, n, sep = "_", fill = 0)
++     spread(var, n, sep = "_", fill = 0) %>% 
++     ungroup()
 + }
 ```
 
@@ -120,6 +121,29 @@ The following function replaces values of a vector above a threshold by `NA`s:
 ``` r
 > replace_by_na <- function(x, th) {
 +   x[x > th] <- NA
++   x
++ }
+```
+
+The following function calculates the proportion of people coming from out of their current district. It works on the `Q22A._Place_living_2005` or the `Q42AM_Moved_from_same_District` variables of the individual data set.
+
+``` r
+> proportion_different_district <- function(x) {
++   x %>% 
++     table() %>%
++     as.matrix() %>%
++     t() %>%
++     as.data.frame() %>% 
++     setNames(tolower(names(.))) %$% 
++     {`other district or abroad` / (`other district or abroad` + `same district`)}
++ }
+```
+
+The following function converts the `NaN` values of a vector to `NA`s:
+
+``` r
+> nan2na <- function(x) {
++   x[is.nan(x)] <- NA
 +   x
 + }
 ```
@@ -163,7 +187,8 @@ Let's apply the previous two functions to the `households` data set:
 > hh_by_village3 <- hh_by_village2 %>%
 +   select(-Q55._Number_of_room) %>% 
 +   group_by(District_ID, Village_ID) %>% 
-+   summarise(Q54._Area_occupied = mean(Q54._Area_occupied))
++   summarise(Q54._Area_occupied = mean(Q54._Area_occupied)) %>% 
++   ungroup()
 ```
 
 ``` r
@@ -202,16 +227,20 @@ Let's apply the previous two functions to the `households` data set:
 > persons2 <- persons %>%
 +   group_by(District_ID, Village_ID) %>% 
 +   summarise(
-+     nb_person    = n(),
-+     nb_household = length(unique(Household_number)),
-+     nb_3_4       = sum( 3 <= Q5._Age & Q5._Age < 5),
-+     nb_5_8       = sum( 5 <= Q5._Age & Q5._Age < 9),
-+     nb_9_12      = sum( 9 <= Q5._Age & Q5._Age < 13),
-+     nb_13_18     = sum(13 <= Q5._Age & Q5._Age < 19),
-+     nb_19_25     = sum(19 <= Q5._Age & Q5._Age < 26),
-+     nb_26_50     = sum(26 <= Q5._Age & Q5._Age < 51),
-+     nb_51        = sum(51 <= Q5._Age)
-+   )
++     nb_person            = n(),
++     nb_household         = length(unique(Household_number)),
++     nb_3_4               = sum( 3 <= Q5._Age & Q5._Age < 5),
++     nb_5_8               = sum( 5 <= Q5._Age & Q5._Age < 9),
++     nb_9_12              = sum( 9 <= Q5._Age & Q5._Age < 13),
++     nb_13_18             = sum(13 <= Q5._Age & Q5._Age < 19),
++     nb_19_25             = sum(19 <= Q5._Age & Q5._Age < 26),
++     nb_26_50             = sum(26 <= Q5._Age & Q5._Age < 51),
++     nb_51                = sum(51 <= Q5._Age,
++     out_of_district_2005 = proportion_different_district(Q22A._Place_living_2005),
++     out_of_district_2014 = Q42AM_Moved_from_same_District %>%
++       proportion_different_district() %>% 
++       nan2na())) %>% 
++   ungroup()
 ```
 
 ``` r
