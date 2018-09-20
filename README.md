@@ -15,7 +15,7 @@ title wherever you want to display the reference list.
 Preambule
 ---------
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household whereas the second one contains data per person. Here we summarise both data set per village and the output is put on the `cleaned_data/census` folder of the DropBox Ecomore2 folder: `hh_by_village.csv` and `prs_by_village.csv` respectively.
+The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household whereas the second one contains data per person. Here we summarise both data set per village and the output is written in the `census/csv` file of the `cleaned_data/census` folder of the DropBox Ecomore2 folder.
 
 Packages
 --------
@@ -163,7 +163,7 @@ Reading and summarizing the data by village
 Let's apply the previous two functions to the `households` data set:
 
 ``` r
-> hh_by_village1 <- households %>%
+> households1 <- households %>%
 +   select(District_ID, Village_ID, Household_type,
 +          starts_with("Q"),
 +          -matches("Q61|2|3"), -matches("Q5[45]")) %>% 
@@ -171,7 +171,7 @@ Let's apply the previous two functions to the `households` data set:
 ```
 
 ``` r
-> hh_by_village2 <- households %>%
+> households2 <- households %>%
 +   select(District_ID, Village_ID, matches("Q5[45]")) %>%
 +   mutate(Q54._Area_occupied = Q54._Area_occupied %>% 
 +            gsub("Not stated", NA, .) %>% 
@@ -184,7 +184,7 @@ Let's apply the previous two functions to the `households` data set:
 ```
 
 ``` r
-> hh_by_village3 <- hh_by_village2 %>%
+> households3 <- households2 %>%
 +   select(-Q55._Number_of_room) %>% 
 +   group_by(District_ID, Village_ID) %>% 
 +   summarise(Q54._Area_occupied = mean(Q54._Area_occupied)) %>% 
@@ -192,25 +192,16 @@ Let's apply the previous two functions to the `households` data set:
 ```
 
 ``` r
-> hh_by_village2 %<>%
+> households2 %<>%
 +   select(-Q54._Area_occupied) %>%
 +   reshape()
 ```
 
 ``` r
-> hh_by_village4 <- households %>%
+> households4 <- households %>%
 +   group_by(District_ID, Village_ID) %>% 
 +   tally() %>% 
 +   ungroup()
-```
-
-``` r
-> hh_by_village <- reduce(list(hh_by_village1, hh_by_village2, hh_by_village3, hh_by_village4),
-+                         left_join, by = c("District_ID", "Village_ID"))
-```
-
-``` r
-> write.csv(hh_by_village, "../../cleaned_data/hh_by_village.csv")
 ```
 
 ### Individual data
@@ -243,10 +234,17 @@ Let's apply the previous two functions to the `households` data set:
 +   ungroup()
 ```
 
-``` r
-> prs_by_village <- left_join(persons1, persons2, by = c("District_ID", "Village_ID"))
-```
+### Writing the CSV
+
+Putting individual and household aggregated data together:
 
 ``` r
-> write.csv(prs_by_village, "../../cleaned_data/prs_by_village.csv")
+> census <- reduce(list(households1, households2, households3, households4,
++                       persons1, persons2), left_join, by = c("District_ID", "Village_ID"))
+```
+
+Writing to disk:
+
+``` r
+> write.csv(census, "../../cleaned_data/census.csv")
 ```
