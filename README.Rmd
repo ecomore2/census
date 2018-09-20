@@ -145,6 +145,15 @@ reshape <- function(df) {
 }
 ```
 
+The following function replaces values of a vector above a threshold by `NA`s:
+
+```{r}
+replace_by_na <- function(x, th) {
+  x[x > th] <- NA
+  x
+}
+```
+
 ## Reading and summarizing the data by village
 
 ### Reading the data
@@ -159,9 +168,49 @@ persons <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Person_Re
 Let's apply the previous two functions to the `households` data set:
 
 ```{r}
-hh_by_village <- households %>%
-  select(District_ID, Village_ID, Household_type, starts_with("Q"), -matches("Q61|2|3")) %>% 
+hh_by_village1 <- households %>%
+  select(District_ID, Village_ID, Household_type,
+         starts_with("Q"),
+         -matches("Q61|2|3"), -matches("Q5[45]")) %>% 
   reshape()
+```
+
+```{r}
+hh_by_village2 <- households %>%
+  select(District_ID, Village_ID, matches("Q5[45]")) %>%
+  mutate(Q54._Area_occupied = Q54._Area_occupied %>% 
+           gsub("Not stated", NA, .) %>% 
+           as.integer(),
+         Q55._Number_of_room = Q55._Number_of_room %>% 
+           gsub("Not stated", NA, .) %>% 
+           gsub(" Rooms*", "", .) %>% 
+           as.integer() %>% 
+           replace_by_na(70))
+```
+
+```{r}
+hh_by_village3 <- hh_by_village2 %>%
+  select(-Q55._Number_of_room) %>% 
+  group_by(District_ID, Village_ID) %>% 
+  summarise(Q54._Area_occupied = mean(Q54._Area_occupied))
+```
+
+```{r}
+hh_by_village2 %<>%
+  select(-Q54._Area_occupied) %>%
+  reshape()
+```
+
+```{r}
+hh_by_village4 <- households %>%
+  group_by(District_ID, Village_ID) %>% 
+  tally() %>% 
+  ungroup()
+```
+
+```{r}
+hh_by_village <- reduce(list(hh_by_village1, hh_by_village2, hh_by_village3, hh_by_village4),
+                        left_join, by = c("District_ID", "Village_ID"))
 ```
 
 ```{r}
