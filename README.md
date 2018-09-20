@@ -109,10 +109,7 @@ The following function combines the two previous functions to reshape a data fra
 +   df %>%
 +     split_by_var("District_ID", "Village_ID") %>%
 +     lapply(summarise_table, "District_ID", "Village_ID") %>% 
-+     reduce(left_join, by = c("District_ID", "Village_ID")) %>% 
-+     mutate(code = paste0("1",
-+                          sprintf("%02.0f", District_ID),
-+                          sprintf("%03.0f", Village_ID)))
++     reduce(left_join, by = c("District_ID", "Village_ID"))
 + }
 ```
 
@@ -240,7 +237,10 @@ Putting individual and household aggregated data together:
 
 ``` r
 > census <- reduce(list(households1, households2, households3, households4,
-+                       persons1, persons2), left_join, by = c("District_ID", "Village_ID"))
++                       persons1, persons2), left_join, by = c("District_ID", "Village_ID")) %>% 
++   mutate(code = paste0("1",
++                        sprintf("%02.0f", District_ID),
++                        sprintf("%03.0f", Village_ID)))
 ```
 
 Writing to disk:
