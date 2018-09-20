@@ -193,7 +193,8 @@ Let's apply the previous two functions to the `households` data set:
 ``` r
 > persons1 <- persons %>%
 +   select(District_ID, Village_ID, Q5._Age) %>% 
-+   bind_cols(select_if(persons, is.factor)) %>% 
++   bind_cols(select_if(persons, is.factor) %>%
++               select(-Q26._Industry_of_working, -Q27M_Person_Id_Fertility)) %>% 
 +   reshape()
 ```
 
