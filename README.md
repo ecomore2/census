@@ -15,7 +15,7 @@ title wherever you want to display the reference list.
 Preambule
 ---------
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household whereas the second one contains data per person. Here we summarise both data set per village and the output is written in the `census/csv` file of the `cleaned_data/census` folder of the DropBox Ecomore2 folder.
+The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household whereas the second one contains data per person. Here we summarise both data set per village and the output is written in the `census.csv` file of the `cleaned_data` folder of the DropBox Ecomore2 folder.
 
 Packages
 --------
