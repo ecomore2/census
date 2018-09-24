@@ -192,12 +192,6 @@ Reshaping the categorical variables:
 > households1 <- households %>% 
 +   select(-Q54._Area_occupied, -area_per_pers, -nb_rooms_per_pers) %>% 
 +   reshape()
-Loading required package: tidyr
-
-Attaching package: 'tidyr'
-The following object is masked from 'package:magrittr':
-
-    extract
 ```
 
 Computing the mean occupied area and the number of households per village:

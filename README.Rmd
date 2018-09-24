@@ -31,7 +31,8 @@ knitr::knit_hooks$set(
 knitr::opts_chunk$set(margin = TRUE, prompt = TRUE, comment = "",
                       collapse = TRUE, cache = TRUE, autodep = TRUE,
                       dev.args = list(pointsize = 11), fig.height = 3.5,
-                      fig.width = 4.24725, fig.retina = 2, fig.align = "center")
+                      fig.width = 4.24725, fig.retina = 2, fig.align = "center",
+                      message = FALSE)
 
 ```
 
@@ -81,7 +82,7 @@ if (! "ecomore" %in% installed_packages)  devtools::install_github("ecomore2/eco
 
 Loading the packages for interactive use at the command line:
 
-```{r message = FALSE}
+```{r}
 invisible(lapply(c(cran, "ecomore"), library, character.only = TRUE))
 ```
 
