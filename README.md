@@ -15,7 +15,7 @@ title wherever you want to display the reference list.
 Preambule
 ---------
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household with **168,949 households** and **35 questions** whereas the second one contains data per person with **820,940 individuals** and **61 questions**. Here we summarise both data set per village and the output is written in the `census.csv` file of the `cleaned_data` folder of the DropBox Ecomore2 folder.
+The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household with **168,949 households** and **35 questions** whereas the second one contains data per person with **820,940 individuals** and **61 questions**. Here we summarise both data set per village and the output is a table of **482 villages** and **4,034** columns that is written in the `census.csv` and `census.rds` files of the `cleaned_data` folder of the DropBox Ecomore2 folder.
 
 Packages
 --------
@@ -250,7 +250,7 @@ Putting individual and household aggregated data together and writting to disk:
 +   mutate(code = paste0("1", sprintf("%02.0f", District_ID),
 +                             sprintf("%03.0f", Village_ID))) %>% 
 +   filter(Village_ID != 999) %>% 
-+   assign("census", .) %>% 
++   assign("census", ., envir = .GlobalEnv) %>% 
 +   write2disk("cleaned_data", "census")
 ```
 
