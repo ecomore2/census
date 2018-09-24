@@ -15,7 +15,7 @@ title wherever you want to display the reference list.
 Preambule
 ---------
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household whereas the second one contains data per person. Here we summarise both data set per village and the output is written in the `census.csv` file of the `cleaned_data` folder of the DropBox Ecomore2 folder.
+The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household with **168,949 households** and **35 questions** whereas the second one contains data per person with **820,940 individuals** and **61 questions**. Here we summarise both data set per village and the output is written in the `census.csv` file of the `cleaned_data` folder of the DropBox Ecomore2 folder.
 
 Packages
 --------
@@ -261,5 +261,36 @@ Putting individual and household aggregated data together and writting to disk:
 +   reduce(left_join, by = c("District_ID", "Village_ID")) %>%
 +   mutate(code = paste0("1", sprintf("%02.0f", District_ID),
 +                             sprintf("%03.0f", Village_ID))) %>% 
++   filter(Village_ID != 999) %>% 
++   assign("census", .) %>% 
 +   write2disk("cleaned_data", "census")
+```
+
+### Tests
+
+``` r
+> anti_join(persons1,    persons2,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(persons1,    households1, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(persons1,    households2, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(persons2,    persons1,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(persons2,    households1, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(persons2,    households2, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households1, households2, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households1, persons1,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households1, persons2,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households2, households2, c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households2, persons1,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
+> anti_join(households2, persons2,    c("District_ID", "Village_ID")) %>% nrow()
+[1] 0
 ```
