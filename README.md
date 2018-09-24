@@ -53,7 +53,7 @@ We additionally need the `ecomore` package from [GitHub](https://github.com/ecom
 Loading the packages for interactive use at the command line:
 
 ``` r
-> invisible(lapply(c(cran, "ecomore"), library, character.only = TRUE))
+> invisible(lapply(c(setdiff(cran, "devtools"), "ecomore"), library, character.only = TRUE))
 ```
 
 Utilitary functions
