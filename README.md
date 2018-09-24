@@ -238,6 +238,7 @@ Putting individual and household aggregated data together and writting to disk:
 +   mutate(code = paste0("1", sprintf("%02.0f", District_ID),
 +                             sprintf("%03.0f", Village_ID))) %>% 
 +   filter(Village_ID != 999) %>% 
++   mutate_at(vars(-matches("per_pers|code")), as.integer) %>% 
 +   assign("census", ., envir = .GlobalEnv) %>% 
 +   write2disk("cleaned_data", "census")
 ```
