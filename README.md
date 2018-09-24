@@ -29,7 +29,7 @@ Packages currently installed on the system:
 Packages that we need from [CRAN](https://cran.r-project.org):
 
 ``` r
-> cran <- c("devtools", # developping tools
+> cran <- c("devtools", # development tools
 +           "dplyr",    # manipulating data frames
 +           "haven",    # importing .sav files
 +           "labelled", # manipulating labelled data
