@@ -15,7 +15,7 @@ title wherever you want to display the reference list.
 Preambule
 ---------
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household with **168,949 households** and **35 questions** whereas the second one contains data per person with **820,940 individuals** and **61 questions**. Here we summarise both data set per village and the output is a table of **482 villages** and **4,034** columns that is written in the `census.csv` and `census.rds` files of the `cleaned_data` folder of the DropBox Ecomore2 folder.
+The census data are 2 .sav files in the `raw_data/census` folder of the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and `PHC2015_Person_Record_Province1.sav`. The first one contains data by household with **168,949 households** and **33 questions** whereas the second one contains data per person with **820,940 individuals** and **61 questions**. Here we summarise both data set per village and the output is a table of **482 villages** and **4,034** columns that is written in the `census.csv` and `census.rds` files of the `cleaned_data` folder of the DropBox Ecomore2 folder.
 
 Packages
 --------
@@ -159,12 +159,6 @@ Reading and summarizing the data by village
 
 ``` r
 > households <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Household_Record.sav")
-Loading required package: magrittr
-
-Attaching package: 'magrittr'
-The following object is masked from 'package:purrr':
-
-    set_names
 > persons <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Person_Record_Province1.sav")
 ```
 
@@ -198,12 +192,6 @@ Reshaping the categorical variables:
 > households1 <- households %>% 
 +   select(-Q54._Area_occupied) %>% 
 +   reshape()
-Loading required package: tidyr
-
-Attaching package: 'tidyr'
-The following object is masked from 'package:magrittr':
-
-    extract
 ```
 
 Computing the mean occupied area and the number of households per village:

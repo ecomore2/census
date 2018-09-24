@@ -40,7 +40,7 @@ knitr::opts_chunk$set(margin = TRUE, prompt = TRUE, comment = "",
 The census data are 2 .sav files in the `raw_data/census` folder of the DropBox
 Ecomore2 folder: `PHC2015_Household_Record.sav` and
 `PHC2015_Person_Record_Province1.sav`. The first one contains data by household
-with **168,949 households** and **35 questions** whereas the second one contains
+with **168,949 households** and **33 questions** whereas the second one contains
 data per person with **820,940 individuals** and **61 questions**. Here we
 summarise both data set per village and the output is a table of **482 villages**
 and **4,034** columns that is written in the `census.csv` and `census.rds` files
@@ -191,7 +191,7 @@ nan2na <- function(x) {
 
 ### Reading the data
 
-```{r}
+```{r, message = FALSE}
 households <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Household_Record.sav")
 persons <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Person_Record_Province1.sav")
 ```
