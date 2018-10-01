@@ -199,9 +199,9 @@ Computing the mean occupied area and the number of households per village:
 ``` r
 > households2 <- households %>%
 +   group_by(District_ID, Village_ID) %>% 
-+   summarise(Q54._Area_occupied     = mean(Q54._Area_occupied, na.rm = NA),
-+             mean_area_per_pers     = mean(area_per_pers, na.rm = NA),
-+             mean_nb_rooms_per_pers = mean(nb_rooms_per_pers,  na.rm = NA),
++   summarise(Q54._Area_occupied     = mean(Q54._Area_occupied, na.rm = TRUE),
++             mean_area_per_pers     = mean(area_per_pers, na.rm = TRUE),
++             mean_nb_rooms_per_pers = mean(nb_rooms_per_pers,  na.rm = TRUE),
 +             nb_households          = n()) %>% 
 +   ungroup()
 ```
