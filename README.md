@@ -16,8 +16,8 @@ title wherever you want to display the reference list.
 The 2015 census data come from the [Lao Statistics
 Bureau](https://www.lsb.gov.la).
 
-The census data are 2 .sav files in the `raw_data/census` folder of the
-DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and
+The census data are 2 `.sav` files in the `raw_data/census` folder of
+the DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and
 `PHC2015_Person_Record_Province1.sav`. The first one contains data by
 household with **168,949 households** and **33 questions** whereas the
 second one contains data per person with **820,940 individuals** and
