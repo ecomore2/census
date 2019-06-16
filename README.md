@@ -13,6 +13,9 @@ Uncomment the bibliography field in the above header and put a "References"
 title wherever you want to display the reference list.
 -->
 
+The 2015 census data come from the [Lao Statistics
+Bureau](https://www.lsb.gov.la).
+
 The census data are 2 .sav files in the `raw_data/census` folder of the
 DropBox Ecomore2 folder: `PHC2015_Household_Record.sav` and
 `PHC2015_Person_Record_Province1.sav`. The first one contains data by
