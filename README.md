@@ -29,9 +29,11 @@ DropBox Ecomore2 folder:
   - Individuals data from `PHC2015_Person_Record_Province1.sav` with
     **820,940 individuals** and **61 questions**.
 
-The cleaning pipeline summarises these 3 data sets per village and merge
-them into a data frame of **485 villages** and **260 variables**
-available in a CSV file that can be copied and pasted from the
+The [cleaning
+pipeline](https://ecomore2.github.io/census/make_data.html) summarises
+these 3 data sets per village and merge them into a data frame of **485
+villages** and **260 variables** available in a CSV file that can be
+copied and pasted from the
 [`data/census.csv`](https://raw.githubusercontent.com/ecomore2/census/master/data/census.csv)
 CSV file or can be downloaded directly from R
 as:
