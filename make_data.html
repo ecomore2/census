@@ -377,6 +377,17 @@ $(document).ready(function () {
 
 </div>
 
+<div id="TOC">
+<ul>
+<li><a href="#preambule">Preambule</a></li>
+<li><a href="#packages">Packages</a></li>
+<li><a href="#utilitary-functions">Utilitary functions</a></li>
+<li><a href="#villages-data">Villages data</a></li>
+<li><a href="#households-data">Households data</a></li>
+<li><a href="#persons-data">Persons data</a></li>
+<li><a href="#merging-and-writing-to-disk">Merging and writing to disk</a></li>
+</ul>
+</div>
 
 <!--
 IMAGES:
@@ -398,6 +409,209 @@ title wherever you want to display the reference list.
   margin-right: auto;
 }
 </style>
+<div id="preambule" class="section level2">
+<h2>Preambule</h2>
+<p>The census data are in 3 files in the <code>raw_data/census</code> folder of the DropBox Ecomore2 folder:</p>
+<ul>
+<li>Villages data from <code>PHC2015 01 province.xlsx</code> with village identifiers and names in Lao and English, and <strong>11 variables</strong> for <strong>480 villages</strong>;</li>
+<li>Households data from <code>PHC2015_Household_Record.sav</code> with <strong>168,949 households</strong> and <strong>33 questions</strong>;</li>
+<li>Individuals data from <code>PHC2015_Person_Record_Province1.sav</code> with <strong>820,940 individuals</strong> and <strong>61 questions</strong>.</li>
+</ul>
+<p>Here we summarise these 3 data sets per village and merge them into a data frame of <strong>485 villages</strong> and <strong>260 variables</strong>.</p>
+</div>
+<div id="packages" class="section level2">
+<h2>Packages</h2>
+<pre class="r"><code>&gt; required &lt;- c(&quot;dplyr&quot;,    # manipulating data frames
++               &quot;haven&quot;,    # importing .sav files
++               &quot;labelled&quot;, # manipulating labelled data
++               &quot;magrittr&quot;, # pipe operators
++               &quot;purrr&quot;,    # functional programming tools
++               &quot;tidyr&quot;     # tidying data functions (spread and gather)
++               )</code></pre>
+<p>Installing these packages when not already installed:</p>
+<pre class="r"><code>&gt; to_install &lt;- setdiff(required, rownames(installed.packages()))
+&gt; if (length(to_install)) install.packages(to_install)</code></pre>
+<p>Loading the packages for interactive use at the command line:</p>
+<pre class="r"><code>&gt; invisible(lapply(required, library, character.only = TRUE))</code></pre>
+</div>
+<div id="utilitary-functions" class="section level2">
+<h2>Utilitary functions</h2>
+<p>The function below reads a <code>.sav</code> file and converts the output to a proper R data frame. In particular, the names of the variables are built from the metadata information and the attributes are removed.</p>
+<pre class="r"><code>&gt; read_sav_data &lt;- function(file) {
++   require(haven)    # read_sav
++   require(labelled) # remove_attributes
++   require(magrittr) # %&gt;% 
++   data &lt;- read_sav(file)
++   data &lt;- to_factor(data)
++   data$EXPORTFILE &lt;- NULL
++   data$FIELDFILE &lt;- NULL
++   names(data) &lt;- data %&gt;%
++     sapply(function(x) attr(x, &quot;label&quot;)) %&gt;%
++     unlist() %&gt;%
++     unname() %&gt;%
++     gsub(&quot; +&quot;, &quot;_&quot;, .)
++   remove_attributes(data, c(&quot;label&quot;, &quot;format.spss&quot;, &quot;display_width&quot;))
++ }</code></pre>
+<p>The following function replaces values of a vector above a threshold by <code>NA</code>s:</p>
+<pre class="r"><code>&gt; replace_by_na &lt;- function(x, th) {
++   x[x &gt; th] &lt;- NA
++   x
++ }</code></pre>
+<p>The following function converts the <code>NaN</code> values of a vector to <code>NA</code>s:</p>
+<pre class="r"><code>&gt; nan2na &lt;- function(x) {
++   x[is.nan(x)] &lt;- NA
++   x
++ }</code></pre>
+<p>The following function fixes factor variables:</p>
+<pre class="r"><code>&gt; fix_factors &lt;- function(x) {
++   x &lt;- as.character(x)
++   x[x == &quot;0&quot;] &lt;- NA
++   x[x == &quot;9&quot;] &lt;- NA
++   x[x == &quot;Not stated&quot;] &lt;- NA
++   x[x == &quot;Other&quot;] &lt;- NA
++   x[x == &quot;Other or Not stated&quot;] &lt;- NA
++   x
++ }</code></pre>
+<p>The following function transform all the categorical variable of a data frame <code>df</code> into variables (as many as there are variables) of proportions of these categories, per village. It is used by the <code>make_quali()</code> function.</p>
+<pre class="r"><code>&gt; make_tables &lt;- function(df) {
++   code &lt;- paste0(df$District_ID, &quot;-&quot;, df$Village_ID)
++   code_unique &lt;- unique(code)
++   tmp &lt;- df %&gt;%
++     split(code) %&gt;% 
++     lapply(function(x) lapply(select_if(x, is.character), table))
++   first_slot &lt;- tmp[[1]]
++   lapply(seq_along(first_slot), function(x) {
++       reduce(lapply(tmp, `[[`, x), bind_rows) %&gt;% 
++         data.frame(code_unique, stringsAsFactors = FALSE) %&gt;% 
++         mutate_if(is.integer, coalesce, 0L) %&gt;%   
++         gather(&quot;key&quot;, &quot;value&quot;, -code_unique) %&gt;% 
++         group_by(code_unique) %&gt;% 
++         mutate(percentage = value / sum(value)) %&gt;% 
++         ungroup() %&gt;% 
++         select(-value) %&gt;% 
++         spread(key, percentage) %&gt;% 
++         separate(code_unique, c(&quot;District_ID&quot;, &quot;Village_ID&quot;)) %&gt;% 
++         mutate_at(vars(ends_with(&quot;_ID&quot;)), as.integer)
++     }) %&gt;% 
++     setNames(names(first_slot))
++ }</code></pre>
+<p>This function fixes some names after a merging:</p>
+<pre class="r"><code>&gt; change_names &lt;- function(df) {
++   df %&gt;% 
++     names() %&gt;% 
++     sub(&quot;\\.x\\.x$&quot;, &quot;_floor&quot;, .) %&gt;% 
++     sub(&quot;\\.y\\.y$&quot;, &quot;_cooking&quot;, .) %&gt;% 
++     sub(&quot;\\.x$&quot;, &quot;_roof&quot;, .) %&gt;% 
++     sub(&quot;\\.y$&quot;, &quot;_wall&quot;, .) %&gt;% 
++     sub(&quot;^Bamboo$&quot;, &quot;Bamboo_floor&quot;, .) %&gt;% 
++     setNames(df, .)
++ }</code></pre>
+<p>The two previous functions are used into the following function that aggregates the categorical variables of a data frame, by village:</p>
+<pre class="r"><code>&gt; make_quali &lt;- function(df) {
++   df %&gt;%
++     make_tables() %&gt;% 
++     reduce(full_join, c(&quot;District_ID&quot;, &quot;Village_ID&quot;)) %&gt;% 
++     change_names()
++ }</code></pre>
+<p>The following function aggregates the quantitative variables (with the mean) of a data frame, by village:</p>
+<pre class="r"><code>&gt; make_quanti &lt;- function(df) {
++   df %&gt;% 
++     select_if(~ ! is.character(.)) %&gt;%
++     group_by(District_ID, Village_ID) %&gt;% 
++     summarise_all(mean, na.rm = TRUE)
++ }</code></pre>
+</div>
+<div id="villages-data" class="section level2">
+<h2>Villages data</h2>
+<p>Generating villages data:</p>
+<pre class="r"><code>&gt; villages &lt;- &quot;../../raw_data/Lao Statistics Bureau/PHC2015 01 province.xlsx&quot; %&gt;% 
++   readxl::read_excel() %&gt;% 
++   mutate(District_ID = as.integer(sub(&quot;^01&quot;, &quot;&quot;, `district ID`)),
++          District_ID = ifelse(District_ID &gt; 10, 3, District_ID),
++          Village_ID = as.integer(`village ID`),
++          District_Name = sub(&quot; *District *$&quot;, &quot;&quot;, `District Name`), 
++          Village_Name = sub(&quot;^B. *&quot;, &quot;&quot;, `Village Name`)) %&gt;% 
++   select(-ID, -`Pro ID`, -province, -`district ID`, -`village ID`, -`Village Name(lo)`,
++          -`District Name(lo)`, -`District Name`, -`Village Name`) %&gt;% 
++   mutate_if(is.numeric, as.integer) %&gt;%
++   mutate_at(c(&quot;electricity&quot;, &quot;watersuply&quot;, &quot;market&quot;, &quot;heathcenter&quot;), ~ . == &quot;Yes&quot;) %&gt;% 
++   select(District_ID, Village_ID, District_Name, Village_Name, everything(), -electricity)</code></pre>
+</div>
+<div id="households-data" class="section level2">
+<h2>Households data</h2>
+<p>Generating households data:</p>
+<pre class="r"><code>&gt; households &lt;- &quot;../../raw_data/Lao Statistics Bureau/PHC2015_Household_Record.sav&quot; %&gt;% 
++   read_sav_data() %&gt;% 
++   select(-Province_ID, -Enumeration_area_1, -Household_number, -Bookserial, -EA2,
++          -Book_number, -Building_number, -Form_number_within_household,
++          -If_hhld_continues_on_next_sheet, -Q61X_Males_4_positions, -Village_type,
++          -Q62X_Females_4_positions, -Q63X_Total_persons_4_positions, -Home_sheet_number) %&gt;% 
++   mutate_if(is.factor, fix_factors) %&gt;% 
++   mutate(Q36._Death_last_12_month = Q36._Death_last_12_month == &quot;Yes&quot;,
++          Q40._Moved_in_HH = Q40._Moved_in_HH == &quot;Yes&quot;,
++          Q44._Moved_out_of_household = Q44._Moved_out_of_household == &quot;Yes&quot;,
++          Q54._Area_occupied = as.integer(na_if(Q54._Area_occupied, &quot;Not stated&quot;)),
++          Q55._Number_of_room = as.integer(sub(&quot; Rooms*&quot;, &quot;&quot;, ifelse(grepl(&quot;Room&quot;, Q55._Number_of_room), Q55._Number_of_room, NA))),
++          Q61._Males = replace_by_na(as.integer(Q61._Males), 10),
++          Q62._Females = replace_by_na(as.integer(Q62._Females), 10),
++          Q63_Total_persons = replace_by_na(as.integer(Q63_Total_persons), 10),
++          area_per_person = Q54._Area_occupied / Q63_Total_persons,
++          rooms_per_person = Q55._Number_of_room / Q63_Total_persons) %&gt;% 
++   mutate_at(vars(starts_with(&quot;Q60&quot;)), `==`, &quot;Yes&quot;) %&gt;% 
++   (function(x) lapply(c(make_quali, make_quanti), function(f) f(x))) %&gt;% 
++   reduce(full_join, c(&quot;District_ID&quot;, &quot;Village_ID&quot;)) %&gt;% 
++   rename(collective_households = Collective,
++          private_households = Private) %&gt;% 
++   mutate_all(nan2na)</code></pre>
+</div>
+<div id="persons-data" class="section level2">
+<h2>Persons data</h2>
+<p>Generating persons data:</p>
+<pre class="r"><code>&gt; persons &lt;- &quot;../../raw_data/Lao Statistics Bureau/PHC2015_Person_Record_Province1.sav&quot; %&gt;% 
++   read_sav_data() %&gt;% 
++   select(District_ID, Village_ID, Household_type, Q4._Sex, Q5._Age, Q6._Marital_Status,
++          Q10A._Born_this_district, Q18._Can_read_and_write, Q19._Attended_school,
++          Q20._Highest_education, Q21._Main_subject_of_study, Q22A._Place_living_2005,
++          Q24._Main_activity_12_month, Q32M_Age_first_birth) %&gt;% 
++   mutate_if(is.factor, fix_factors) %&gt;% 
++   mutate(Q5._Age = paste0(&quot;a&quot;, Q5._Age),
++          Q18._Can_read_and_write = sub(&quot;Zero&quot;, &quot;Not at all&quot;, Q18._Can_read_and_write),
++          Q32M_Age_first_birth = as.integer(sub(&quot; *[Yy]ears *&quot;, &quot;&quot;, Q32M_Age_first_birth))) %&gt;% 
++   (function(x) lapply(c(make_quali, make_quanti), function(f) f(x))) %&gt;% 
++   reduce(full_join, c(&quot;District_ID&quot;, &quot;Village_ID&quot;)) %&gt;% 
++   rename(collective_persons = Collective,
++          private_persons = Private) %&gt;% 
++   mutate_all(nan2na)</code></pre>
+</div>
+<div id="merging-and-writing-to-disk" class="section level2">
+<h2>Merging and writing to disk</h2>
+<p>Checking that we can merge:</p>
+<pre class="r"><code>&gt; intersect(names(persons), names(households))
+[1] &quot;District_ID&quot; &quot;Village_ID&quot; 
+&gt; intersect(names(persons), names(villages))
+[1] &quot;District_ID&quot; &quot;Village_ID&quot; 
+&gt; intersect(names(households), names(villages))
+[1] &quot;District_ID&quot; &quot;Village_ID&quot; </code></pre>
+<p>Merging, tuning and writing to disk:</p>
+<pre class="r"><code>&gt; if (!dir.exists(&quot;data&quot;)) dir.create(&quot;data&quot;)
+&gt; list(villages, households, persons) %&gt;% 
++   reduce(full_join, c(&quot;District_ID&quot;, &quot;Village_ID&quot;)) %&gt;% 
++   rename(water_supply = watersuply,
++          Bottled.or.canned.water = Botled.or.canned.water,
++          health_center = heathcenter,
++          On.premises = On.permises,
++          Journalism.and.information = Jounalism.and.information,
++          Mathematics.and.statistics = Mathematics.and.statatistics) %&gt;% 
++   select(District_ID:Well.borehole.unprotected, On.premises, Less.than.200.meters,
++          X200.to.499.meters, X500.to.999.meters, X1000.meters.or.more, Bucket:a1,
++          paste0(&quot;a&quot;, 2:98), a99:Never, No.grade, paste0(&quot;Grade.&quot;, 1:6),
++          paste0(&quot;Lower.secondary.&quot;, 1:4), paste0(&quot;Upper.secondary.&quot;, 1:3),
++          Vocation.education.first.level, Vocation.education.middle.level,
++          Vocation.education.high.level, Graduate.degree.holder,
++          Post.graduate.masters.degree, Higher.than.post.graduate,
++          Agriculture..forestry.and.fishing:Q32M_Age_first_birth) %&gt;%
++   write.csv(&quot;data/census.csv&quot;, FALSE, row.names = FALSE)</code></pre>
+</div>
 
 
 

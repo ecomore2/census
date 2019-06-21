@@ -34,7 +34,7 @@ title wherever you want to display the reference list.
 }
 </style>
 
-```{r general_options, include = FALSE}
+```{r general options, include = FALSE}
 knitr::knit_hooks$set(
   margin = function(before, options, envir) {
     if (before) par(mgp = c(1.5, .5, 0), bty = "n", plt = c(.105, .97, .13, .97))
@@ -44,7 +44,7 @@ knitr::knit_hooks$set(
     options(prompt = if (options$engine %in% c("sh", "bash")) "$ " else "> ")
   })
 
-knitr::opts_chunk$set(margin = TRUE, prompt = TRUE, comment = "",
+knitr::opts_chunk$set(margin = TRUE, prompt = TRUE, comment = "", message = FALSE,
                       collapse = TRUE, cache = FALSE, autodep = TRUE,
                       dev.args = list(pointsize = 11), fig.height = 3.5,
                       fig.width = 4.24725, fig.retina = 2, fig.align = "center")
@@ -54,61 +54,49 @@ options(width = 137)
 
 ## Preambule
 
-The census data are 2 .sav files in the `raw_data/census` folder of the DropBox
-Ecomore2 folder: `PHC2015_Household_Record.sav` and
-`PHC2015_Person_Record_Province1.sav`. The first one contains data by household
-with **168,949 households** and **33 questions** whereas the second one contains
-data per person with **820,940 individuals** and **61 questions**. Here we
-summarise both data set per village and the output is a table of **482 villages**
-and **1,244** columns that is written in the `census.csv` and `census.rds` files
-of the `cleaned_data` folder of the DropBox Ecomore2 folder. For a quick
-overview of the information available in the data, see below the types of
-questions asked, ordered into 6 main categories (general individual questions,
-handicaps, education, movements, motherhood, type of household).
+The census data are in 3 files in the `raw_data/census` folder of the DropBox
+Ecomore2 folder:
+
+* Villages data from `PHC2015 01 province.xlsx` with village identifiers and names
+in Lao and English, and **11 variables** for **480 villages**;
+* Households data from `PHC2015_Household_Record.sav` with **168,949 households**
+and **33 questions**;
+* Individuals data from `PHC2015_Person_Record_Province1.sav` with
+**820,940 individuals** and **61 questions**.
+
+Here we summarise these 3 data sets per village and merge them into a data frame
+of **485 villages** and **260 variables**.
 
 ## Packages
 
-Packages currently installed on the system:
-
-```{r}
-installed_packages <- rownames(installed.packages())
-```
-
-Packages that we need from [CRAN](https://cran.r-project.org):
-
-```{r}
-cran <- c("devtools", # development tools
-          "dplyr",    # manipulating data frames
-          "haven",    # importing .sav files
-          "labelled", # manipulating labelled data
-          "purrr"     # functional programming tools
-          )
+```{r required packages}
+required <- c("dplyr",    # manipulating data frames
+              "haven",    # importing .sav files
+              "labelled", # manipulating labelled data
+              "magrittr", # pipe operators
+              "purrr",    # functional programming tools
+              "tidyr"     # tidying data functions (spread and gather)
+              )
 ```
 
 Installing these packages when not already installed:
 
-```{r}
-to_install <- !cran %in% installed_packages
-if (any(to_install)) install.packages(cran[to_install])
-```
-
-We additionally need the `ecomore` package from
-[GitHub](https://github.com/ecomore2/ecomore):
-
-```{r}
-if (! "ecomore" %in% installed_packages)  devtools::install_github("ecomore2/ecomore")
+```{r installing packages}
+to_install <- setdiff(required, rownames(installed.packages()))
+if (length(to_install)) install.packages(to_install)
 ```
 
 Loading the packages for interactive use at the command line:
 
-```{r}
-invisible(lapply(c(setdiff(cran, "devtools"), "ecomore"), library, character.only = TRUE))
+```{r loading packages}
+invisible(lapply(required, library, character.only = TRUE))
 ```
 
 ## Utilitary functions
 
-The function below reads .sav file and converts the output to a proper R data
-frame:
+The function below reads a `.sav` file and converts the output to a proper R
+data frame. In particular, the names of the variables are built from the
+metadata information and the attributes are removed.
 
 ```{r}
 read_sav_data <- function(file) {
@@ -128,73 +116,12 @@ read_sav_data <- function(file) {
 }
 ```
 
-The following function splits a data frame into a list of data frames that
-contains the variables specified in the `...` plus then each on the other
-variables:
-
-```{r}
-split_by_var <- function(df, ...) {
-  args <- as.list(match.call())
-  var_ref <- unlist(args[-(1:2)])
-  vars <- setdiff(names(df), var_ref)
-  lapply(vars, function(x) df[c(var_ref, x)])
-}
-```
-
-The following function converts a data frame with a categorical variable into
-a summurized version of it where `table` is called on the categorical variable:
-
-```{r}
-summarise_table <- function(df, ...) {
-  require(tidyr)  # spread
-  args <- as.list(match.call())
-  var_ref <- unlist(args[-(1:2)])
-  var <- setdiff(names(df), var_ref)
-  df %>%
-    group_by(.dots = var_ref) %>%
-    count_(var) %>%
-    ungroup() %>%
-    spread(var, n, sep = "_", fill = 0) %>% 
-    ungroup()
-}
-```
-
-The following function combines the two previous functions to reshape a
-data frame:
-
-```{r}
-reshape <- function(df) {
-  require(purrr)  # reduce
-  require(dplyr)  # mutate
-  df %>%
-    split_by_var("District_ID", "Village_ID") %>%
-    lapply(summarise_table, "District_ID", "Village_ID") %>% 
-    reduce(left_join, by = c("District_ID", "Village_ID"))
-}
-```
-
 The following function replaces values of a vector above a threshold by `NA`s:
 
 ```{r}
 replace_by_na <- function(x, th) {
   x[x > th] <- NA
   x
-}
-```
-
-The following function calculates the proportion of people coming from out of
-their current district. It works on the `Q22A._Place_living_2005` or the
-`Q42AM_Moved_from_same_District` variables of the individual data set.
-
-```{r}
-proportion_different_district <- function(x) {
-  x %>% 
-    table() %>%
-    as.matrix() %>%
-    t() %>%
-    as.data.frame() %>% 
-    setNames(tolower(names(.))) %$% 
-    {`other district or abroad` / (`other district or abroad` + `same district`)}
 }
 ```
 
@@ -207,114 +134,189 @@ nan2na <- function(x) {
 }
 ```
 
-## Reading and summarizing the data by village
-
-### Reading the data
-
-```{r, message = FALSE}
-households <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Household_Record.sav")
-persons <- read_sav_data("../../raw_data/Lao Statistics Bureau/PHC2015_Person_Record_Province1.sav")
-```
-
-### Household data
-
-Removing the number of males (`Q61._Males`, `Q61X_Males_4_positions`),
-females (`Q62._Females`, `Q62X_Females_4_positions`) and people
-(`Q63_Total_persons`, `Q63X_Total_persons_4_positions`), plus additional
-cleaning:
+The following function fixes factor variables:
 
 ```{r}
-households %<>% select(District_ID, Village_ID, Household_type,
-                         starts_with("Q"), -matches("Q6[1|2]"),
-                         -Q63X_Total_persons_4_positions) %>%
-                mutate(Q54._Area_occupied = Q54._Area_occupied %>% 
-                         gsub("Not stated", NA, .) %>% 
-                         as.integer(),
-                       Q55._Number_of_room = Q55._Number_of_room %>% 
-                         gsub("Not stated", NA, .) %>% 
-                         gsub(" Rooms*", "", .) %>% 
-                         as.integer() %>% 
-                         replace_by_na(70),
-                       Q63_Total_persons = Q63_Total_persons %>% 
-                         as.character() %>% 
-                         as.integer() %>% 
-                         replace_by_na(20),
-                       area_per_pers = Q54._Area_occupied / Q63_Total_persons,
-                       nb_rooms_per_pers = Q55._Number_of_room / Q63_Total_persons)
+fix_factors <- function(x) {
+  x <- as.character(x)
+  x[x == "0"] <- NA
+  x[x == "9"] <- NA
+  x[x == "Not stated"] <- NA
+  x[x == "Other"] <- NA
+  x[x == "Other or Not stated"] <- NA
+  x
+}
 ```
 
-Reshaping the categorical variables:
+The following function transform all the categorical variable of a data frame
+`df` into variables (as many as there are variables) of proportions of these
+categories, per village. It is used by the `make_quali()` function.
 
 ```{r}
-households1 <- households %>% 
-  select(-Q54._Area_occupied, -area_per_pers, -nb_rooms_per_pers) %>% 
-  reshape()
+make_tables <- function(df) {
+  code <- paste0(df$District_ID, "-", df$Village_ID)
+  code_unique <- unique(code)
+  tmp <- df %>%
+    split(code) %>% 
+    lapply(function(x) lapply(select_if(x, is.character), table))
+  first_slot <- tmp[[1]]
+  lapply(seq_along(first_slot), function(x) {
+      reduce(lapply(tmp, `[[`, x), bind_rows) %>% 
+        data.frame(code_unique, stringsAsFactors = FALSE) %>% 
+        mutate_if(is.integer, coalesce, 0L) %>%   
+        gather("key", "value", -code_unique) %>% 
+        group_by(code_unique) %>% 
+        mutate(percentage = value / sum(value)) %>% 
+        ungroup() %>% 
+        select(-value) %>% 
+        spread(key, percentage) %>% 
+        separate(code_unique, c("District_ID", "Village_ID")) %>% 
+        mutate_at(vars(ends_with("_ID")), as.integer)
+    }) %>% 
+    setNames(names(first_slot))
+}
 ```
 
-Computing the mean occupied area and the number of households per village:
+This function fixes some names after a merging:
 
 ```{r}
-households2 <- households %>%
-  group_by(District_ID, Village_ID) %>% 
-  summarise(Q54._Area_occupied     = mean(Q54._Area_occupied, na.rm = TRUE),
-            mean_area_per_pers     = mean(area_per_pers, na.rm = TRUE),
-            mean_nb_rooms_per_pers = mean(nb_rooms_per_pers,  na.rm = TRUE),
-            nb_households          = n()) %>% 
-  ungroup()
+change_names <- function(df) {
+  df %>% 
+    names() %>% 
+    sub("\\.x\\.x$", "_floor", .) %>% 
+    sub("\\.y\\.y$", "_cooking", .) %>% 
+    sub("\\.x$", "_roof", .) %>% 
+    sub("\\.y$", "_wall", .) %>% 
+    sub("^Bamboo$", "Bamboo_floor", .) %>% 
+    setNames(df, .)
+}
 ```
 
-### Individual data
-
-Reshaping the categorical variables:
+The two previous functions are used into the following function that aggregates
+the categorical variables of a data frame, by village:
 
 ```{r}
-persons1 <- persons %>%
-  select(District_ID, Village_ID, Q5._Age) %>%
-# adding all the factors except Q26 and Q27:
-  bind_cols(., select_if(persons, is.factor) %>%
-                 select(-Q26._Industry_of_working, -Q27M_Person_Id_Fertility)) %>%
-  mutate(age = cut(Q5._Age, c(3, 5, 9, 13, 19, 26, 51, max(Q5._Age) + 1), right = FALSE)) %>%
-  reshape()
+make_quali <- function(df) {
+  df %>%
+    make_tables() %>% 
+    reduce(full_join, c("District_ID", "Village_ID")) %>% 
+    change_names()
+}
 ```
 
-Generating the total number of people:
+The following function aggregates the quantitative variables (with the mean) of
+a data frame, by village:
 
 ```{r}
-persons2 <- persons %>%
-  group_by(District_ID, Village_ID) %>% 
-  summarise(nb_person = n())
+make_quanti <- function(df) {
+  df %>% 
+    select_if(~ ! is.character(.)) %>%
+    group_by(District_ID, Village_ID) %>% 
+    summarise_all(mean, na.rm = TRUE)
+}
 ```
 
-### Writing the CSV and RDS files
+## Villages data
 
-Putting individual and household aggregated data together and writting to disk:
+Generating villages data:
 
-```{r}
-list(households1, households2, persons1, persons2) %>% 
-  reduce(left_join, by = c("District_ID", "Village_ID")) %>%
-  mutate(code = paste0("1", sprintf("%02.0f", District_ID),
-                            sprintf("%03.0f", Village_ID))) %>% 
-  filter(Village_ID != 999) %>% 
-  mutate_at(vars(-matches("per_pers|code")), as.integer) %>% 
-  assign("census", ., envir = .GlobalEnv) %>% 
-  write2disk("cleaned_data", "census")
+```{r villages}
+villages <- "../../raw_data/Lao Statistics Bureau/PHC2015 01 province.xlsx" %>% 
+  readxl::read_excel() %>% 
+  mutate(District_ID = as.integer(sub("^01", "", `district ID`)),
+         District_ID = ifelse(District_ID > 10, 3, District_ID),
+         Village_ID = as.integer(`village ID`),
+         District_Name = sub(" *District *$", "", `District Name`), 
+         Village_Name = sub("^B. *", "", `Village Name`)) %>% 
+  select(-ID, -`Pro ID`, -province, -`district ID`, -`village ID`, -`Village Name(lo)`,
+         -`District Name(lo)`, -`District Name`, -`Village Name`) %>% 
+  mutate_if(is.numeric, as.integer) %>%
+  mutate_at(c("electricity", "watersuply", "market", "heathcenter"), ~ . == "Yes") %>% 
+  select(District_ID, Village_ID, District_Name, Village_Name, everything(), -electricity)
 ```
 
-### Tests
+## Households data
 
-```{r}
-anti_join(persons1,    persons2,    c("District_ID", "Village_ID")) %>% nrow()
-anti_join(persons1,    households1, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(persons1,    households2, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(persons2,    persons1,    c("District_ID", "Village_ID")) %>% nrow()
-anti_join(persons2,    households1, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(persons2,    households2, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households1, households2, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households1, persons1,    c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households1, persons2,    c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households2, households2, c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households2, persons1,    c("District_ID", "Village_ID")) %>% nrow()
-anti_join(households2, persons2,    c("District_ID", "Village_ID")) %>% nrow()
+Generating households data:
+
+```{r households}
+households <- "../../raw_data/Lao Statistics Bureau/PHC2015_Household_Record.sav" %>% 
+  read_sav_data() %>% 
+  select(-Province_ID, -Enumeration_area_1, -Household_number, -Bookserial, -EA2,
+         -Book_number, -Building_number, -Form_number_within_household,
+         -If_hhld_continues_on_next_sheet, -Q61X_Males_4_positions, -Village_type,
+         -Q62X_Females_4_positions, -Q63X_Total_persons_4_positions, -Home_sheet_number) %>% 
+  mutate_if(is.factor, fix_factors) %>% 
+  mutate(Q36._Death_last_12_month = Q36._Death_last_12_month == "Yes",
+         Q40._Moved_in_HH = Q40._Moved_in_HH == "Yes",
+         Q44._Moved_out_of_household = Q44._Moved_out_of_household == "Yes",
+         Q54._Area_occupied = as.integer(na_if(Q54._Area_occupied, "Not stated")),
+         Q55._Number_of_room = as.integer(sub(" Rooms*", "", ifelse(grepl("Room", Q55._Number_of_room), Q55._Number_of_room, NA))),
+         Q61._Males = replace_by_na(as.integer(Q61._Males), 10),
+         Q62._Females = replace_by_na(as.integer(Q62._Females), 10),
+         Q63_Total_persons = replace_by_na(as.integer(Q63_Total_persons), 10),
+         area_per_person = Q54._Area_occupied / Q63_Total_persons,
+         rooms_per_person = Q55._Number_of_room / Q63_Total_persons) %>% 
+  mutate_at(vars(starts_with("Q60")), `==`, "Yes") %>% 
+  (function(x) lapply(c(make_quali, make_quanti), function(f) f(x))) %>% 
+  reduce(full_join, c("District_ID", "Village_ID")) %>% 
+  rename(collective_households = Collective,
+         private_households = Private) %>% 
+  mutate_all(nan2na)
 ```
 
+## Persons data
+
+Generating persons data:
+
+```{r persons}
+persons <- "../../raw_data/Lao Statistics Bureau/PHC2015_Person_Record_Province1.sav" %>% 
+  read_sav_data() %>% 
+  select(District_ID, Village_ID, Household_type, Q4._Sex, Q5._Age, Q6._Marital_Status,
+         Q10A._Born_this_district, Q18._Can_read_and_write, Q19._Attended_school,
+         Q20._Highest_education, Q21._Main_subject_of_study, Q22A._Place_living_2005,
+         Q24._Main_activity_12_month, Q32M_Age_first_birth) %>% 
+  mutate_if(is.factor, fix_factors) %>% 
+  mutate(Q5._Age = paste0("a", Q5._Age),
+         Q18._Can_read_and_write = sub("Zero", "Not at all", Q18._Can_read_and_write),
+         Q32M_Age_first_birth = as.integer(sub(" *[Yy]ears *", "", Q32M_Age_first_birth))) %>% 
+  (function(x) lapply(c(make_quali, make_quanti), function(f) f(x))) %>% 
+  reduce(full_join, c("District_ID", "Village_ID")) %>% 
+  rename(collective_persons = Collective,
+         private_persons = Private) %>% 
+  mutate_all(nan2na)
+```
+
+## Merging and writing to disk
+
+Checking that we can merge:
+
+```{r pre-merge check}
+intersect(names(persons), names(households))
+intersect(names(persons), names(villages))
+intersect(names(households), names(villages))
+```
+
+Merging, tuning and writing to disk:
+
+```{r merging and writing}
+if (!dir.exists("data")) dir.create("data")
+list(villages, households, persons) %>% 
+  reduce(full_join, c("District_ID", "Village_ID")) %>% 
+  rename(water_supply = watersuply,
+         Bottled.or.canned.water = Botled.or.canned.water,
+         health_center = heathcenter,
+         On.premises = On.permises,
+         Journalism.and.information = Jounalism.and.information,
+         Mathematics.and.statistics = Mathematics.and.statatistics) %>% 
+  select(District_ID:Well.borehole.unprotected, On.premises, Less.than.200.meters,
+         X200.to.499.meters, X500.to.999.meters, X1000.meters.or.more, Bucket:a1,
+         paste0("a", 2:98), a99:Never, No.grade, paste0("Grade.", 1:6),
+         paste0("Lower.secondary.", 1:4), paste0("Upper.secondary.", 1:3),
+         Vocation.education.first.level, Vocation.education.middle.level,
+         Vocation.education.high.level, Graduate.degree.holder,
+         Post.graduate.masters.degree, Higher.than.post.graduate,
+         Agriculture..forestry.and.fishing:Q32M_Age_first_birth) %>%
+  write.csv("data/census.csv", FALSE, row.names = FALSE)
+```
 
